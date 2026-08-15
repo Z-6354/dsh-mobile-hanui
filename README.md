@@ -35,6 +35,12 @@ Activated under a narrow viewport (`max-width: 1023px`, i.e. phones), it:
 - Host face is a stub; the bundle patch (`cordis.patch.yml`) only inserts an
   empty host entry so `client-modules` can discover the client bundle.
 
+## Install
+
+See [docs/INSTALL.md](docs/INSTALL.md) for a step-by-step installation and
+wiring guide (git-linked dependency or npm), plus a loader/troubleshooting
+reference written for AI agents.
+
 ## Disable
 
 Add `?mobileShell=0` to the URL or set `localStorage['dsh-mobile-shell'] = '0'`.
