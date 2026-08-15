@@ -13,8 +13,13 @@
     "access": "public"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Z-6354/dsh-mobile-hanui.git"
+  },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "prepublishOnly": "npm test"
   },
   "dsh": {
     "bundle": {
