@@ -1,6 +1,6 @@
 {
   "name": "dsh-mobile-hanui",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Standalone mobile UI shell for the DeepSeek Harness web GUI (phone layout, drawers, FAB, mobile composer fixes)",
   "type": "module",
   "main": "./src/index.js",
