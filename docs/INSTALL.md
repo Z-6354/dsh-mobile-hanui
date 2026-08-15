@@ -76,7 +76,8 @@ This is how it is deployed in this repository's own setup.
 
 ## 4. Install (method B — npm)
 
-Once published to npm, install by name instead of a `link:` path:
+The package is published to npm as `dsh-mobile-hanui`. Install by name instead
+of a `link:` path:
 
 ```bash
 cd ~/.dsh/profiles/web
@@ -85,6 +86,12 @@ pnpm add dsh-mobile-hanui
 
 Then add `"dsh-mobile-hanui"` to `dsh.profile.bundles` (same as method A step 3)
 and restart the web service as in step 5.
+
+Alternatively, use the DSH CLI to add and reconcile the bundle automatically:
+
+```bash
+dsh plugin --profile web add dsh-mobile-hanui
+```
 
 ## 5. How it loads (for AI readers)
 

@@ -3,6 +3,18 @@
 Standalone mobile UI shell for the DeepSeek Harness Web GUI, extracted from
 `han-relay` so mobile layout adaptation lives as its own plugin.
 
+[![npm](https://img.shields.io/npm/v/dsh-mobile-hanui)](https://www.npmjs.com/package/dsh-mobile-hanui)
+[![GitHub repo](https://img.shields.io/badge/GitHub-Z--6354%2Fdsh--mobile--hanui-blue)](https://github.com/Z-6354/dsh-mobile-hanui)
+
+## Install
+
+```bash
+pnpm add dsh-mobile-hanui
+```
+
+Full step-by-step guide (git-linked or npm, wiring, loader, troubleshooting,
+written for AI agents): [docs/INSTALL.md](docs/INSTALL.md).
+
 ## What it does
 
 Activated under a narrow viewport (`max-width: 1023px`, i.e. phones), it:
@@ -34,12 +46,6 @@ Activated under a narrow viewport (`max-width: 1023px`, i.e. phones), it:
 - Client face is auto-scanned via `dsh.client` (see `package.json`).
 - Host face is a stub; the bundle patch (`cordis.patch.yml`) only inserts an
   empty host entry so `client-modules` can discover the client bundle.
-
-## Install
-
-See [docs/INSTALL.md](docs/INSTALL.md) for a step-by-step installation and
-wiring guide (git-linked dependency or npm), plus a loader/troubleshooting
-reference written for AI agents.
 
 ## Disable
 
