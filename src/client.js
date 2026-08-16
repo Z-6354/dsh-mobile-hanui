@@ -479,28 +479,40 @@ window.__ModuleLoader__.load({
     z-index: 120 !important;
   }
 
-  /* User-questions panel: force it visible and full-width in the composer so
-     ask_user_question options are reachable on phones (desktop unchanged). */
+  /* User-questions panel: on phones it renders inside the sticky composer seat,
+     where narrow height / overflow clipping leaves it half-visible or hidden.
+     Lift it into a full-screen centered dialog with a mask so options are
+     always reachable (desktop unchanged). */
   html.${HTML_CLASS} .${QUESTION.frame} {
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
-    position: relative !important;
-    z-index: 30 !important;
-    padding: 6px 8px 10px !important;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 300 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 12px !important;
+    box-sizing: border-box !important;
     max-height: none !important;
-    overflow: visible !important;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch;
+    background: var(--dsw-alias-bg-mask-1, rgba(15,17,21,.5)) !important;
   }
   html.${HTML_CLASS} .${QUESTION.card} {
     width: 100% !important;
-    max-width: 100% !important;
-    max-height: min(70vh, 560px) !important;
+    max-width: min(560px, 100%) !important;
+    max-height: min(85vh, 85dvh) !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
+    background: var(--dsw-alias-bg-layer-2, var(--dsw-alias-bg-base, #fff)) !important;
+    border-radius: 20px !important;
+    box-shadow: var(--dsw-shadow-lv3, 0 12px 40px rgba(0,0,0,.2)) !important;
   }
   html.${HTML_CLASS} .${QUESTION.body} {
+    flex: 1 1 auto !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
     min-height: 0 !important;
