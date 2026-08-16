@@ -112,6 +112,9 @@ window.__ModuleLoader__.load({
       rowActions: 'YDXeBa_rowActions',
       iconButton: 'YDXeBa_iconButton',
     }
+    // Tooltip bubble (hover label like 停止生成/发送消息/关闭) — position:fixed
+    // with hover-time coordinates that don't follow the anchor when it moves.
+    const TOOLTIP_BUBBLE = '_bubble_owhem_8'
 
     function shellDisabled() {
       try {
@@ -570,6 +573,14 @@ window.__ModuleLoader__.load({
     flex-wrap: wrap !important;
     min-width: 0 !important;
     flex: none !important;
+  }
+
+  /* Tooltip bubbles (停止生成/发送消息/关闭 hover labels) are position:fixed
+     with hover-time coordinates, so they don't follow their anchor when the
+     composer/drawer scrolls or reflows on phones. Hide them on mobile — touch
+     has no hover anyway, and aria-labels keep the text available to AT. */
+  html.${HTML_CLASS} .${TOOLTIP_BUBBLE} {
+    display: none !important;
   }
 
   /* Keep iOS zoom guard */
