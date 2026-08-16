@@ -1507,14 +1507,6 @@ window.__ModuleLoader__.load({
 
     function apply(ctx) {
       ensureStyle()
-      // Mobile perf: the runtime requests 50 history messages per page, which is
-      // heavy to render on phones. Set a small page size for mobile only
-      // (desktop never sets this flag, so it keeps 50).
-      try {
-        globalThis.__DSH_HISTORY_PAGE = 15
-      } catch (err) {
-        console.warn('[dsh-mobile-hanui] history page', err)
-      }
       ctx.effect(
         () =>
           ctx.slots.inject('shell.overlay', () =>
