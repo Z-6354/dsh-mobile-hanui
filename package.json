@@ -38,7 +38,7 @@
     "cordis.patch.yml",
     "package.json",
     "README.md",
-    "docs",
+    "AGENTS.md",
     "LICENSE"
   ]
 }
