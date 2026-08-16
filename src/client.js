@@ -115,6 +115,10 @@ window.__ModuleLoader__.load({
     // Tooltip bubble (hover label like 停止生成/发送消息/关闭) — position:fixed
     // with hover-time coordinates that don't follow the anchor when it moves.
     const TOOLTIP_BUBBLE = '_bubble_owhem_8'
+    // Sidebar inner root (SidebarRoot) — carries an inline width from the desktop
+    // three-column layout that is narrower than the phone drawer, leaving a
+    // blank strip to the right of the collapse button.
+    const SIDEBAR_ROOT = 'hHd-Xa_root'
 
     function shellDisabled() {
       try {
@@ -210,6 +214,15 @@ window.__ModuleLoader__.load({
     width: 100% !important;
     max-width: none !important;
     animation: none !important;
+  }
+  /* The sidebar's inner root carries an inline width from the desktop
+     three-column solve (e.g. 280px) that is narrower than the phone drawer
+     (min(100%,360px)), leaving a blank strip right of the collapse button.
+     Force the inner root to fill the drawer. */
+  html.${HTML_CLASS} .${CLS.frame}:not([data-sidebar-collapsed]) .${SIDEBAR_ROOT} {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
   html.${HTML_CLASS} .${CLS.frame}:not([data-sidebar-collapsed]) .${CLS.sidebar} [class*="Label"] {
     max-width: none !important;
