@@ -892,7 +892,9 @@ window.__ModuleLoader__.load({
       const breakTarget = cacheHitEl || tokensEl
       const existingBreaks = Array.from(root.querySelectorAll('[data-dsh-stats-break]'))
       if (!breakTarget) {
-        for (const b of existingBreaks) b.remove()
+        if (existingBreaks.length > 0) {
+          for (const b of existingBreaks) b.remove()
+        }
         return
       }
       let breakEl = existingBreaks[0] || null
@@ -1135,7 +1137,10 @@ window.__ModuleLoader__.load({
         }
         schedule()
         const obs = new MutationObserver(schedule)
-        obs.observe(document.body, { childList: true, characterData: true, subtree: true })
+        // NOTE: observe childList only (new nodes), NOT characterData. Streams
+        // mutate text on every token while loading history / generating, which
+        // would re-scan all stat roots hundreds of times and slow the phone.
+        obs.observe(document.body, { childList: true, subtree: true })
         return () => {
           if (raf) cancelAnimationFrame(raf)
           obs.disconnect()
@@ -1502,6 +1507,14 @@ window.__ModuleLoader__.load({
 
     function apply(ctx) {
       ensureStyle()
+      // Mobile perf: the runtime requests 50 history messages per page, which is
+      // heavy to render on phones. Set a small page size for mobile only
+      // (desktop never sets this flag, so it keeps 50).
+      try {
+        globalThis.__DSH_HISTORY_PAGE = 15
+      } catch (err) {
+        console.warn('[dsh-mobile-hanui] history page', err)
+      }
       ctx.effect(
         () =>
           ctx.slots.inject('shell.overlay', () =>
