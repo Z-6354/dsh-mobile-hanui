@@ -104,6 +104,20 @@ window.__ModuleLoader__.load({
       shellStack: 'pXSMma_stack',
       shellBody: 'pXSMma_body',
     }
+    // Workspace section header — the row directly beside the workspace title:
+    // search field, view-options (group/order) menu, and add-workspace (+)
+    // button. These controls open sub-views / menus inside the drawer, so a tap
+    // must NOT collapse the sidebar (previously the generic "actionable" branch
+    // closed it → search / add-workspace flashed the drawer closed).
+    const WS_HDR = {
+      sectionHeader: 'qDHVXG_sectionHeader',
+      search: 'qDHVXG_search',
+      searchButton: 'qDHVXG_searchButton',
+      searchInput: 'qDHVXG_searchInput',
+      clearButton: 'qDHVXG_clearButton',
+      iconButton: 'qDHVXG_iconButton',
+      headerActions: 'qDHVXG_headerActions',
+    }
     // Workspace sidebar session rows (div[role=treeitem], not <button>)
     const SIDEBAR_ROW = {
       session: 'YDXeBa_sessionRow',
@@ -1331,6 +1345,11 @@ window.__ModuleLoader__.load({
           if (!(t instanceof Element)) return
           // Row action menus / folder chrome — don't close
           if (t.closest(`.${SIDEBAR_ROW.rowActions}, .${SIDEBAR_ROW.iconButton}, input, textarea, select`)) {
+            return
+          }
+          // Workspace section-header controls (search view, view options, add
+          // workspace) open sub-views / menus inside the drawer — keep it open.
+          if (t.closest(`.${WS_HDR.sectionHeader}, .${WS_HDR.search}, .${WS_HDR.searchButton}, .${WS_HDR.searchInput}, .${WS_HDR.clearButton}, .${WS_HDR.iconButton}`)) {
             return
           }
           // Session rows are div[role=treeitem].YDXeBa_sessionRow (not <button>)
