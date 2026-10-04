@@ -109,22 +109,49 @@ window.__ModuleLoader__.load({
     // button. These controls open sub-views / menus inside the drawer, so a tap
     // must NOT collapse the sidebar (previously the generic "actionable" branch
     // closed it → search / add-workspace flashed the drawer closed).
+    // W-10 S1: hash-proof selectors — CSS-module LOCAL-SUFFIX attribute matching
+    // survives core rebuilds (qDHVXG_* -> bhn1Oq_*) by construction. Values are
+    // FULL selectors (usage sites carry no leading dot). Worst-case suffix
+    // collision lands in a keep-open lane = benign (ratified plan risk 1).
     const WS_HDR = {
-      sectionHeader: 'qDHVXG_sectionHeader',
-      search: 'qDHVXG_search',
-      searchButton: 'qDHVXG_searchButton',
-      searchInput: 'qDHVXG_searchInput',
-      clearButton: 'qDHVXG_clearButton',
-      iconButton: 'qDHVXG_iconButton',
-      headerActions: 'qDHVXG_headerActions',
+      sectionHeader: '[class*="_sectionHeader"]',
+      search: '[class*="_search"]',
+      searchButton: '[class*="_searchButton"]',
+      searchInput: '[class*="_searchInput"]',
+      clearButton: '[class*="_clearButton"]',
+      iconButton: '[class*="_iconButton"]',
+      headerActions: '[class*="_headerActions"]',
     }
     // Workspace sidebar session rows (div[role=treeitem], not <button>)
     const SIDEBAR_ROW = {
-      session: 'YDXeBa_sessionRow',
-      search: 'YDXeBa_searchResultRow',
-      project: 'YDXeBa_projectRow',
-      rowActions: 'YDXeBa_rowActions',
-      iconButton: 'YDXeBa_iconButton',
+      session: '[class*="_sessionRow"]',
+      search: '[class*="_searchResultRow"]',
+      project: '[class*="_projectRow"]',
+      rowActions: '[class*="_rowActions"]',
+      iconButton: '[class*="_iconButton"]',
+    }
+    // W-10 S2: single collapsed-state source. Newer core keeps truth in a VALUE
+    // attribute on <body> (data-dsh-sidebar-collapsed); older/other builds put a
+    // PRESENCE attribute on the frame. Body support latches on first sighting
+    // (mobile boots collapsed, so the attribute is present at mount); once
+    // latched, absence of the body attribute means OPEN — never fall back.
+    let bodyStateLatched =
+      typeof document !== 'undefined' && document.body.hasAttribute('data-dsh-sidebar-collapsed')
+    function readSidebarCollapsed(frame) {
+      const v = typeof document !== 'undefined' ? document.body.getAttribute('data-dsh-sidebar-collapsed') : null
+      if (v !== null) {
+        bodyStateLatched = true
+        return v !== 'false'
+      }
+      if (bodyStateLatched) return false
+      return frame ? frame.hasAttribute('data-sidebar-collapsed') : true
+    }
+    function observeSidebarState(frame, cb) {
+      const obs = new MutationObserver(cb)
+      if (typeof document !== 'undefined')
+        obs.observe(document.body, { attributes: true, attributeFilter: ['data-dsh-sidebar-collapsed'] })
+      if (frame) obs.observe(frame, { attributes: true, attributeFilter: ['data-sidebar-collapsed'] })
+      return obs
     }
     // Tooltip bubble (hover label like 停止生成/发送消息/关闭) — position:fixed
     // with hover-time coordinates that don't follow the anchor when it moves.
@@ -236,12 +263,12 @@ window.__ModuleLoader__.load({
     transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
   }
 
-  html.${HTML_CLASS} .${CLS.frame}:not([data-sidebar-collapsed]) .${CLS.sidebar} {
+  html.${HTML_CLASS} .${CLS.frame}[data-dshmob-collapsed="false"] .${CLS.sidebar} {
     transform: translate3d(0, 0, 0) !important;
     pointer-events: auto !important;
   }
 
-  html.${HTML_CLASS} .${CLS.frame}:not([data-sidebar-collapsed]) .${CLS.sidebar} > * {
+  html.${HTML_CLASS} .${CLS.frame}[data-dshmob-collapsed="false"] .${CLS.sidebar} > * {
     width: 100% !important;
     max-width: none !important;
     animation: none !important;
@@ -250,21 +277,21 @@ window.__ModuleLoader__.load({
      three-column solve (e.g. 280px) that is narrower than the phone drawer
      (min(100%,360px)), leaving a blank strip right of the collapse button.
      Force the inner root to fill the drawer. */
-  html.${HTML_CLASS} .${CLS.frame}:not([data-sidebar-collapsed]) .${SIDEBAR_ROOT} {
+  html.${HTML_CLASS} .${CLS.frame}[data-dshmob-collapsed="false"] .${SIDEBAR_ROOT} {
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
   }
-  html.${HTML_CLASS} .${CLS.frame}:not([data-sidebar-collapsed]) .${CLS.sidebar} [class*="Label"] {
+  html.${HTML_CLASS} .${CLS.frame}[data-dshmob-collapsed="false"] .${CLS.sidebar} [class*="Label"] {
     max-width: none !important;
     opacity: 1 !important;
     overflow: visible !important;
   }
-  html.${HTML_CLASS} .${CLS.frame}:not([data-sidebar-collapsed]) .${CLS.sidebar} time,
-  html.${HTML_CLASS} .${CLS.frame}:not([data-sidebar-collapsed]) .${CLS.sidebar} [class*="time"],
-  html.${HTML_CLASS} .${CLS.frame}:not([data-sidebar-collapsed]) .${CLS.sidebar} [class*="Time"],
-  html.${HTML_CLASS} .${CLS.frame}:not([data-sidebar-collapsed]) .${CLS.sidebar} [class*="meta"],
-  html.${HTML_CLASS} .${CLS.frame}:not([data-sidebar-collapsed]) .${CLS.sidebar} [class*="Meta"] {
+  html.${HTML_CLASS} .${CLS.frame}[data-dshmob-collapsed="false"] .${CLS.sidebar} time,
+  html.${HTML_CLASS} .${CLS.frame}[data-dshmob-collapsed="false"] .${CLS.sidebar} [class*="time"],
+  html.${HTML_CLASS} .${CLS.frame}[data-dshmob-collapsed="false"] .${CLS.sidebar} [class*="Time"],
+  html.${HTML_CLASS} .${CLS.frame}[data-dshmob-collapsed="false"] .${CLS.sidebar} [class*="meta"],
+  html.${HTML_CLASS} .${CLS.frame}[data-dshmob-collapsed="false"] .${CLS.sidebar} [class*="Meta"] {
     flex: none;
     white-space: nowrap;
     position: static !important;
@@ -1407,7 +1434,7 @@ window.__ModuleLoader__.load({
               document.documentElement.setAttribute(ATTR_DETAILS, '')
               setDetailsOpen(true)
               const f = findFrame()
-              if (f && !f.hasAttribute('data-sidebar-collapsed')) layout.toggleSidebar?.()
+              if (f && !readSidebarCollapsed(f)) layout.toggleSidebar?.()
             } catch (err) {
               console.warn('[dsh-mobile-hanui] openDetails', err)
               document.documentElement.removeAttribute(ATTR_DETAILS)
@@ -1450,10 +1477,15 @@ window.__ModuleLoader__.load({
 
       React.useEffect(() => {
         if (!frame) return
-        const read = () => setCollapsed(frame.hasAttribute('data-sidebar-collapsed'))
-        read()
-        const obs = new MutationObserver(read)
-        obs.observe(frame, { attributes: true, attributeFilter: ['data-sidebar-collapsed'] })
+        // W-10 S2: mirror the (drift-proof) state onto a hanui-owned attribute
+        // so drawer CSS reads [data-dshmob-collapsed], never core attributes.
+        const mirror = () => {
+          const c = readSidebarCollapsed(frame)
+          frame.setAttribute('data-dshmob-collapsed', c ? 'true' : 'false')
+          setCollapsed(c)
+        }
+        mirror()
+        const obs = observeSidebarState(frame, mirror)
         return () => obs.disconnect()
       }, [frame])
 
@@ -1585,43 +1617,44 @@ window.__ModuleLoader__.load({
       React.useEffect(() => {
         if (!mobile || !sidebarEl || !frame) return
         const onClick = (e) => {
-          if (frame.hasAttribute('data-sidebar-collapsed')) return
+          if (readSidebarCollapsed(frame)) return
           const t = e.target
           if (!(t instanceof Element)) return
-          // Row action menus / folder chrome — don't close
-          if (t.closest(`.${SIDEBAR_ROW.rowActions}, .${SIDEBAR_ROW.iconButton}, input, textarea, select`)) {
+          // Row action menus / folder chrome / form fields — don't close
+          if (t.closest(`${SIDEBAR_ROW.rowActions}, ${SIDEBAR_ROW.iconButton}, input, textarea, select`)) {
             return
           }
           // Workspace section-header controls (search view, view options, add
-          // workspace) open sub-views / menus inside the drawer — keep it open.
-          if (t.closest(`.${WS_HDR.sectionHeader}, .${WS_HDR.search}, .${WS_HDR.searchButton}, .${WS_HDR.searchInput}, .${WS_HDR.clearButton}, .${WS_HDR.iconButton}`)) {
+          // workspace) + session overflow ("Show N more") open sub-views
+          // INSIDE the drawer — keep open. W-10 S1: suffix selectors (hash-
+          // proof) + aria labels as belt-and-braces for the functional targets.
+          if (
+            t.closest(
+              `${WS_HDR.sectionHeader}, ${WS_HDR.search}, ${WS_HDR.searchButton}, ${WS_HDR.searchInput}, ${WS_HDR.clearButton}, ${WS_HDR.iconButton}, ${WS_HDR.headerActions}, [class*="_sessionOverflowButton"], [aria-label="Search sessions"], [aria-label="View options"], [aria-label="Add workspace"]`,
+            )
+          ) {
             return
           }
-          // Session rows are div[role=treeitem].YDXeBa_sessionRow (not <button>)
-          const sessionHit = t.closest(`.${SIDEBAR_ROW.session}, .${SIDEBAR_ROW.search}`)
+          // Session rows are div[role=treeitem] in a *_sessionRow local class.
+          const sessionHit = t.closest(`${SIDEBAR_ROW.session}, ${SIDEBAR_ROW.search}`)
           if (sessionHit) {
             const closeIfOpen = () => {
-              if (!frame.hasAttribute('data-sidebar-collapsed')) toggleSidebar()
+              if (!readSidebarCollapsed(frame)) toggleSidebar()
             }
             window.setTimeout(closeIfOpen, 140)
             window.setTimeout(closeIfOpen, 280)
             return
           }
-          // Other nav (new chat, settings, …) — skip project/folder expand rows
-          if (t.closest(`.${SIDEBAR_ROW.project}`)) return
+          // Project/folder expand rows keep the drawer open.
+          if (t.closest(SIDEBAR_ROW.project)) return
           // The settings trigger opens a full-screen overlay that lives INSIDE
           // the drawer; closing the drawer here would kill the just-opened panel
           // (the "settings flashes then disappears" bug). Keep the drawer open.
           if (t.closest(`.${SETTINGS.overlay}, .${SETTINGS.trigger}`)) return
-          const actionable = t.closest(
-            'button, a, [role="button"], [role="option"], [role="menuitem"], li, [data-session-id], [data-conversation-id]',
-          )
-          if (!actionable) return
-          const closeIfOpen = () => {
-            if (!frame.hasAttribute('data-sidebar-collapsed')) toggleSidebar()
-          }
-          window.setTimeout(closeIfOpen, 140)
-          window.setTimeout(closeIfOpen, 280)
+          // W-10 S3 fail-open: the catch-all close is GONE. Unknown buttons/
+          // links keep the drawer open — a false close costs a feature (search,
+          // show-more), a false open costs one backdrop tap. Only the positive
+          // session activation above closes.
         }
         sidebarEl.addEventListener('click', onClick, true)
         return () => sidebarEl.removeEventListener('click', onClick, true)
@@ -1635,7 +1668,7 @@ window.__ModuleLoader__.load({
             closeDetails()
             return
           }
-          if (frame && !frame.hasAttribute('data-sidebar-collapsed')) toggleSidebar()
+          if (frame && !readSidebarCollapsed(frame)) toggleSidebar()
         }
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)
