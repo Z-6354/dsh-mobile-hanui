@@ -842,6 +842,12 @@ window.__ModuleLoader__.load({
   .dshMobBackdrop[data-visible="true"] {
     display: block;
   }
+  /* W-7/W-9: keyboard-inset consumption. Zero under resizes-content (the
+     content viewport itself shrinks, nothing to compensate); positive lift
+     on engines that ignore the descriptor (iOS lane). */
+  html.dsh-mobile-shell [data-composer-seat] {
+    padding-bottom: var(--dsh-kb-inset, 0px);
+  }
 }
 `
 
@@ -1188,11 +1194,21 @@ window.__ModuleLoader__.load({
       // its own fields spill under the backdrop, so tapping the free-text
       // answer landed on backdrop and closed the panel (James, 2026-09-30).
       // Instead float the card so its bottom rests just above the keyboard.
+      // W-7/W-9 S3: the 150 ms follow-poll is retired — the card now moves on
+      // visualViewport events (rAF-coalesced) with a settle-damp (|Δ|<2 px
+      // drops the write; no more 6.7 Hz shimmer fighting the 300 ms OSK
+      // animation). A 2500 ms PRESENCE watchdog (not a follow loop) covers the
+      // panel mounting without any viewport event.
       React.useEffect(() => {
         if (!mobile) return
-        const tick = () => {
+        let raf = 0
+        let last = null
+        let hadEl = false
+        const run = () => {
+          raf = 0
           const el = document.querySelector('.' + QUESTION.frame)
-          if (!el) return
+          hadEl = !!el
+          if (!el) { last = null; return }
           const vv = window.visualViewport
           const vw = (vv && vv.width) || window.innerWidth
           const vh = (vv && vv.height) || window.innerHeight
@@ -1212,11 +1228,62 @@ window.__ModuleLoader__.load({
           let ty = wantB - natB
           if (nat.y + ty < vTop + 8) ty = vTop + 8 - nat.y
           el.dataset.hnpin = JSON.stringify({ x: tx, y: ty })
+          if (last && Math.abs(tx - last.x) < 2 && Math.abs(ty - last.y) < 2) { last = { x: tx, y: ty }; return }
+          last = { x: tx, y: ty }
           el.style.transform = 'translate(' + tx + 'px,' + ty + 'px)'
         }
-        const iv = setInterval(tick, 150)
-        tick()
-        return () => clearInterval(iv)
+        const schedule = () => { if (!raf) raf = requestAnimationFrame(run) }
+        run()
+        const vv = window.visualViewport
+        if (vv) {
+          vv.addEventListener('resize', schedule)
+          vv.addEventListener('scroll', schedule)
+        }
+        const iv = setInterval(() => {
+          const present = !!document.querySelector('.' + QUESTION.frame)
+          if (present !== hadEl) run()
+        }, 2500)
+        return () => {
+          if (raf) cancelAnimationFrame(raf)
+          clearInterval(iv)
+          if (vv) {
+            vv.removeEventListener('resize', schedule)
+            vv.removeEventListener('scroll', schedule)
+          }
+        }
+      }, [mobile])
+
+      // W-7/W-9 S2: the ONE keyboard signal — event-driven, rAF-coalesced.
+      // Publishes --dsh-kb-inset + html[data-kb-open] for CSS consumers; under
+      // the S1 descriptor inset resolves to ~0 (content resized already).
+      React.useEffect(() => {
+        if (!mobile) return
+        const vv = window.visualViewport
+        const root = document.documentElement
+        let raf = 0
+        const publish = () => {
+          raf = 0
+          if (!vv) return
+          const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+          root.style.setProperty('--dsh-kb-inset', Math.round(inset) + 'px')
+          if (inset > 140) root.setAttribute('data-kb-open', 'true')
+          else root.removeAttribute('data-kb-open')
+        }
+        const schedule = () => { if (!raf) raf = requestAnimationFrame(publish) }
+        publish()
+        if (vv) {
+          vv.addEventListener('resize', schedule)
+          vv.addEventListener('scroll', schedule)
+        }
+        return () => {
+          if (raf) cancelAnimationFrame(raf)
+          if (vv) {
+            vv.removeEventListener('resize', schedule)
+            vv.removeEventListener('scroll', schedule)
+          }
+          root.style.removeProperty('--dsh-kb-inset')
+          root.removeAttribute('data-kb-open')
+        }
       }, [mobile])
 
       // Suppress programmatic input focus on mobile: switching sessions fires
@@ -1768,6 +1835,14 @@ window.__ModuleLoader__.load({
     if (typeof window !== 'undefined') {
       try {
         const mq0 = window.matchMedia(MOBILE_MQ)
+        // W-7/W-9 S1: ask Chrome to resize content with the OSK instead of
+        // overlaying it. The descriptor is evaluated at document load — it
+        // must be patched here, at bundle boot, never later.
+        const vm = document.querySelector('meta[name="viewport"]')
+        if (vm && mq0.matches) {
+          const c = vm.getAttribute('content') || ''
+          if (!/interactive-widget/i.test(c)) vm.setAttribute('content', c.replace(/\s*$/, '') + ', interactive-widget=resizes-content')
+        }
         const sync0 = () => {
           if (mq0.matches && !shellDisabled()) document.documentElement.classList.add(HTML_CLASS)
         }
