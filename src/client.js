@@ -130,18 +130,21 @@ window.__ModuleLoader__.load({
       rowActions: '[class*="_rowActions"]',
       iconButton: '[class*="_iconButton"]',
     }
-    // W-10 S2: single collapsed-state source. Newer core keeps truth in a VALUE
-    // attribute on <body> (data-dsh-sidebar-collapsed); older/other builds put a
-    // PRESENCE attribute on the frame. Body support latches on first sighting
-    // (mobile boots collapsed, so the attribute is present at mount); once
-    // latched, absence of the body attribute means OPEN — never fall back.
-    let bodyStateLatched =
-      typeof document !== 'undefined' && document.body.hasAttribute('data-dsh-sidebar-collapsed')
+    // W-10 S2 (carrier census 2026-10-04, corrected): live truth is
+    // data-sidebar-collapsed ON THE FRAME, NAME-CORRECT (present = collapsed,
+    // absent = open — census double-tap from an open boot: attr appears on
+    // close, vanishes on reopen). The BODY attribute is a boot-default hint
+    // carrying 'true'/'false' in some builds and a STATIC '' marker in
+    // others — '' is ignored, never latched. Absence pre-toggle = open,
+    // matching pre-W-10 hanui behavior exactly (desktop parity; core hides
+    // the drawer via its own mq CSS at mobile boot). Mirror pass every 1s
+    // keeps state exact where an attribute change would not reveal it.
+    let bodyStateLatched = false
     function readSidebarCollapsed(frame) {
       const v = typeof document !== 'undefined' ? document.body.getAttribute('data-dsh-sidebar-collapsed') : null
-      if (v !== null) {
+      if (v === 'true' || v === 'false') {
         bodyStateLatched = true
-        return v !== 'false'
+        return v === 'true'
       }
       if (bodyStateLatched) return false
       return frame ? frame.hasAttribute('data-sidebar-collapsed') : true
@@ -1486,7 +1489,13 @@ window.__ModuleLoader__.load({
         }
         mirror()
         const obs = observeSidebarState(frame, mirror)
-        return () => obs.disconnect()
+        // The drawer animates in without any attribute mutation (boot open
+        // state); a cheap mirror pass keeps truth exact regardless of carrier.
+        const iv = setInterval(mirror, 1000)
+        return () => {
+          obs.disconnect()
+          clearInterval(iv)
+        }
       }, [frame])
 
       // W-8 wake-and-verify: Android silently kills the socket during freeze/Doze
