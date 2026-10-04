@@ -1732,7 +1732,7 @@ window.__ModuleLoader__.load({
       })
     }
 
-    const inject = ['slots', 'layout']
+    const inject = ['slots', 'layout', 'commandUi', 'conversation']
 
     // Module-scope hooks: executed the moment this bundle is evaluated, on
     // every route — including ones where apply() is never called.
@@ -1756,6 +1756,126 @@ window.__ModuleLoader__.load({
       // DOM-injected hero drawer was a workaround for a React crash that is
       // gone. One opener (the FAB), one backdrop, one state source: the
       // frame's data-sidebar-collapsed attribute.
+
+      // W-1 mobile attach: /attach command (client contributions merge into
+      // the command catalog = visible under the + button AND when typing /).
+      // Intake uses public draft verbs only: conversation.createDraftImages
+      // (capability-checked — it lives on the concrete controller, not the
+      // declared face) + the session-scoped inputActions.addImages captured
+      // from an invisible conversation.input.left plumbing entry (slot is
+      // empty by catalogue; this entry renders nothing, adds no button).
+      try {
+        const mqA = window.matchMedia(MOBILE_MQ)
+        let inputActions = null
+        const notice = (text) => {
+          try {
+            const n = document.createElement('div')
+            n.textContent = text
+            n.style.cssText = 'position:fixed;left:12px;right:12px;top:calc(8px + env(safe-area-inset-top,0px));padding:10px 12px;border-radius:10px;background:rgba(30,30,34,.95);color:#eee;font-size:13px;z-index:400;pointer-events:none'
+            document.body.appendChild(n)
+            setTimeout(() => n.remove(), 3200)
+          } catch (_) {}
+        }
+        const toJpeg = async (file) => {
+          try {
+            const bmp = await createImageBitmap(file)
+            const max = Math.max(bmp.width, bmp.height)
+            const s = max > 4096 ? 4096 / max : 1
+            const cv = document.createElement('canvas')
+            cv.width = Math.max(1, Math.round(bmp.width * s))
+            cv.height = Math.max(1, Math.round(bmp.height * s))
+            cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height)
+            const blob = await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.9))
+            if (bmp.close) bmp.close()
+            if (!blob) return file
+            const base = String(file.name || 'photo').replace(/\.(heic|heif)$/i, '')
+            return new File([blob], base + '.jpg', { type: 'image/jpeg' })
+          } catch (_) { return file }
+        }
+        const intake = async (files) => {
+          try {
+            console.info('[hanui-attach] intake', files.length, 'inputActions:', !!inputActions, 'createDraftImages:', typeof (ctx.conversation || {}).createDraftImages)
+            const conv = ctx.conversation
+            if (!conv || typeof conv.createDraftImages !== 'function' || !inputActions) {
+              notice('Attach unavailable right now — paste or drop instead.')
+              return
+            }
+            const list = []
+            for (const f of files) {
+              list.push(/^image\/hei[cf]$/i.test(f.type) ? await toJpeg(f) : f)
+            }
+            const atts = conv.createDraftImages(list)
+            if (!inputActions.addImages(atts.map((a) => a.id))) {
+              if (conv.releaseDraftImages) conv.releaseDraftImages(atts)
+              notice('Composer is busy — try again in a moment.')
+            }
+          } catch (e) {
+            notice('Attach failed: ' + String((e && e.message) || e))
+          }
+        }
+        const openPicker = (mode) => {
+          const inp = document.createElement('input')
+          inp.type = 'file'
+          inp.accept = 'image/*'
+          inp.multiple = true
+          if (mode === 'camera') inp.capture = 'environment'
+          inp.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0'
+          inp.addEventListener('change', () => { console.info('[hanui-attach] change fired', inp.files.length); intake([...inp.files]); inp.remove() }, { once: true })
+          inp.addEventListener('cancel', () => inp.remove(), { once: true })
+          document.body.appendChild(inp)
+          setTimeout(() => { if (inp.isConnected) inp.remove() }, 120000)
+          inp.click()
+        }
+        ctx.effect(
+          () => ctx.slots.inject('conversation.input.left', () =>
+            ctx.slots.register(
+              {
+                name: 'conversation.input.left',
+                id: 'dsh-mobile-hanui-attach-plumbing',
+                order: 900,
+                label: 'Attach plumbing',
+              },
+              (props) => {
+                // Per-session slot: capture this session's actions on mount,
+                // release on unmount ONLY if still ours (order-proof across
+                // view switches). onSelect then always targets the visible
+                // session's composer, never a stale one.
+                const ia = props && props.inputActions
+                React.useEffect(() => {
+                  if (!ia) return
+                  inputActions = ia
+                  console.info('[hanui-attach] plumbing captured')
+                  return () => { if (inputActions === ia) { inputActions = null; console.info('[hanui-attach] plumbing released') } }
+                }, [ia])
+                return null
+              },
+            )),
+          'dsh-mobile-hanui: attach plumbing',
+        )
+        ctx.effect(
+          () => {
+            if (!ctx.commandUi) return
+            try {
+              const off = ctx.commandUi.register({
+                name: 'attach',
+                description: 'Attach an image to the message',
+                available: () => mqA.matches,
+                ui: {
+                  kind: 'popupSelect',
+                  options: async () => [
+                    { id: 'library', label: 'Choose photo…', detail: 'From your library' },
+                    { id: 'camera', label: 'Take photo…', detail: 'Open the camera' },
+                  ],
+                  onSelect: (opt) => { openPicker(opt && opt.id === 'camera' ? 'camera' : 'library') },
+                },
+              })
+              return typeof off === 'function' ? off : undefined
+            } catch (_) {}
+          },
+          'dsh-mobile-hanui: /attach',
+        )
+      } catch (_) {}
+
       ctx.effect(
         () =>
           ctx.slots.inject('shell.overlay', () =>
