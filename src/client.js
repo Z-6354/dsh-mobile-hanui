@@ -27,7 +27,7 @@ window.__ModuleLoader__.load({
     const { jsx, jsxs } = require('react/jsx-runtime')
 
     const MOBILE_MQ = '(max-width: 1023px)'
-    const STYLE_ID = 'dsh-mobile-hanui-css-v1'
+    const STYLE_ID = 'dsh-mobile-hanui-css-v2'
     const HTML_CLASS = 'dsh-mobile-shell'
     const ATTR_DETAILS = 'data-dsh-mobile-details-open'
     const FAB_POS_KEY = 'dsh-mobile-fab-pos'
@@ -109,22 +109,52 @@ window.__ModuleLoader__.load({
     // button. These controls open sub-views / menus inside the drawer, so a tap
     // must NOT collapse the sidebar (previously the generic "actionable" branch
     // closed it → search / add-workspace flashed the drawer closed).
+    // W-10 S1: hash-proof selectors — CSS-module LOCAL-SUFFIX attribute matching
+    // survives core rebuilds (qDHVXG_* -> bhn1Oq_*) by construction. Values are
+    // FULL selectors (usage sites carry no leading dot). Worst-case suffix
+    // collision lands in a keep-open lane = benign (ratified plan risk 1).
     const WS_HDR = {
-      sectionHeader: 'qDHVXG_sectionHeader',
-      search: 'qDHVXG_search',
-      searchButton: 'qDHVXG_searchButton',
-      searchInput: 'qDHVXG_searchInput',
-      clearButton: 'qDHVXG_clearButton',
-      iconButton: 'qDHVXG_iconButton',
-      headerActions: 'qDHVXG_headerActions',
+      sectionHeader: '[class*="_sectionHeader"]',
+      search: '[class*="_search"]',
+      searchButton: '[class*="_searchButton"]',
+      searchInput: '[class*="_searchInput"]',
+      clearButton: '[class*="_clearButton"]',
+      iconButton: '[class*="_iconButton"]',
+      headerActions: '[class*="_headerActions"]',
     }
     // Workspace sidebar session rows (div[role=treeitem], not <button>)
     const SIDEBAR_ROW = {
-      session: 'YDXeBa_sessionRow',
-      search: 'YDXeBa_searchResultRow',
-      project: 'YDXeBa_projectRow',
-      rowActions: 'YDXeBa_rowActions',
-      iconButton: 'YDXeBa_iconButton',
+      session: '[class*="_sessionRow"]',
+      search: '[class*="_searchResultRow"]',
+      project: '[class*="_projectRow"]',
+      rowActions: '[class*="_rowActions"]',
+      iconButton: '[class*="_iconButton"]',
+    }
+    // W-10 S2 (carrier census 2026-10-04, corrected): live truth is
+    // data-sidebar-collapsed ON THE FRAME, NAME-CORRECT (present = collapsed,
+    // absent = open — census double-tap from an open boot: attr appears on
+    // close, vanishes on reopen). The BODY attribute is a boot-default hint
+    // carrying 'true'/'false' in some builds and a STATIC '' marker in
+    // others — '' is ignored, never latched. Absence pre-toggle = open,
+    // matching pre-W-10 hanui behavior exactly (desktop parity; core hides
+    // the drawer via its own mq CSS at mobile boot). Mirror pass every 1s
+    // keeps state exact where an attribute change would not reveal it.
+    let bodyStateLatched = false
+    function readSidebarCollapsed(frame) {
+      const v = typeof document !== 'undefined' ? document.body.getAttribute('data-dsh-sidebar-collapsed') : null
+      if (v === 'true' || v === 'false') {
+        bodyStateLatched = true
+        return v === 'true'
+      }
+      if (bodyStateLatched) return false
+      return frame ? frame.hasAttribute('data-sidebar-collapsed') : true
+    }
+    function observeSidebarState(frame, cb) {
+      const obs = new MutationObserver(cb)
+      if (typeof document !== 'undefined')
+        obs.observe(document.body, { attributes: true, attributeFilter: ['data-dsh-sidebar-collapsed'] })
+      if (frame) obs.observe(frame, { attributes: true, attributeFilter: ['data-sidebar-collapsed'] })
+      return obs
     }
     // Tooltip bubble (hover label like 停止生成/发送消息/关闭) — position:fixed
     // with hover-time coordinates that don't follow the anchor when it moves.
@@ -156,6 +186,11 @@ window.__ModuleLoader__.load({
     }
 
     const CSS = `
+/* Stacking contract — ONE layer each, no exceptions:
+     backdrop 45 < sidebar 50 < details 55 < FAB 60
+   Open/closed state is driven solely by the frame's data-sidebar-collapsed
+   attribute (transform + pointer-events below). Nothing else may open or
+   restack the drawer. */
 @media ${MOBILE_MQ} {
   /* Local chat: full width, never translated / squeezed */
   html.${HTML_CLASS} .${CLS.frame} {
@@ -231,12 +266,12 @@ window.__ModuleLoader__.load({
     transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
   }
 
-  html.${HTML_CLASS} .${CLS.frame}:not([data-sidebar-collapsed]) .${CLS.sidebar} {
+  html.${HTML_CLASS} .${CLS.frame}[data-dshmob-collapsed="false"] .${CLS.sidebar} {
     transform: translate3d(0, 0, 0) !important;
     pointer-events: auto !important;
   }
 
-  html.${HTML_CLASS} .${CLS.frame}:not([data-sidebar-collapsed]) .${CLS.sidebar} > * {
+  html.${HTML_CLASS} .${CLS.frame}[data-dshmob-collapsed="false"] .${CLS.sidebar} > * {
     width: 100% !important;
     max-width: none !important;
     animation: none !important;
@@ -245,21 +280,21 @@ window.__ModuleLoader__.load({
      three-column solve (e.g. 280px) that is narrower than the phone drawer
      (min(100%,360px)), leaving a blank strip right of the collapse button.
      Force the inner root to fill the drawer. */
-  html.${HTML_CLASS} .${CLS.frame}:not([data-sidebar-collapsed]) .${SIDEBAR_ROOT} {
+  html.${HTML_CLASS} .${CLS.frame}[data-dshmob-collapsed="false"] .${SIDEBAR_ROOT} {
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
   }
-  html.${HTML_CLASS} .${CLS.frame}:not([data-sidebar-collapsed]) .${CLS.sidebar} [class*="Label"] {
+  html.${HTML_CLASS} .${CLS.frame}[data-dshmob-collapsed="false"] .${CLS.sidebar} [class*="Label"] {
     max-width: none !important;
     opacity: 1 !important;
     overflow: visible !important;
   }
-  html.${HTML_CLASS} .${CLS.frame}:not([data-sidebar-collapsed]) .${CLS.sidebar} time,
-  html.${HTML_CLASS} .${CLS.frame}:not([data-sidebar-collapsed]) .${CLS.sidebar} [class*="time"],
-  html.${HTML_CLASS} .${CLS.frame}:not([data-sidebar-collapsed]) .${CLS.sidebar} [class*="Time"],
-  html.${HTML_CLASS} .${CLS.frame}:not([data-sidebar-collapsed]) .${CLS.sidebar} [class*="meta"],
-  html.${HTML_CLASS} .${CLS.frame}:not([data-sidebar-collapsed]) .${CLS.sidebar} [class*="Meta"] {
+  html.${HTML_CLASS} .${CLS.frame}[data-dshmob-collapsed="false"] .${CLS.sidebar} time,
+  html.${HTML_CLASS} .${CLS.frame}[data-dshmob-collapsed="false"] .${CLS.sidebar} [class*="time"],
+  html.${HTML_CLASS} .${CLS.frame}[data-dshmob-collapsed="false"] .${CLS.sidebar} [class*="Time"],
+  html.${HTML_CLASS} .${CLS.frame}[data-dshmob-collapsed="false"] .${CLS.sidebar} [class*="meta"],
+  html.${HTML_CLASS} .${CLS.frame}[data-dshmob-collapsed="false"] .${CLS.sidebar} [class*="Meta"] {
     flex: none;
     white-space: nowrap;
     position: static !important;
@@ -339,22 +374,10 @@ window.__ModuleLoader__.load({
     margin: 0 6px !important;
     font-size: 12px !important;
   }
-  /* StatsLine composer dock — two lines; hide TTFT/tok/s */
+  /* StatsLine composer dock — hidden on phones (James: "could probably do
+     without the stats at the bottom on mobile"); desktop keeps the 2-line form. */
   html.${HTML_CLASS} .${STATS.root} {
-    white-space: normal !important;
-    overflow: visible !important;
-    text-overflow: unset !important;
-    display: flex !important;
-    flex-wrap: wrap !important;
-    justify-content: center !important;
-    align-items: baseline !important;
-    gap: 2px 0 !important;
-    row-gap: 2px !important;
-    max-width: 100% !important;
-    font-size: 12px !important;
-    line-height: 18px !important;
-    text-align: center !important;
-    opacity: 0.8;
+    display: none !important;
   }
   html.${HTML_CLASS} .${STATS.root} [data-dsh-stats="speeds"],
   html.${HTML_CLASS} .${STATS.root} [data-dsh-stats="sep-hide"] {
@@ -462,8 +485,11 @@ window.__ModuleLoader__.load({
     align-items: center !important;
     column-gap: 8px !important;
     row-gap: 4px !important;
-    padding-left: 12px !important;
+    padding-left: 62px !important; /* clear the FAB (10+44px + margin) */
     padding-right: 12px !important;
+    position: relative !important;
+    z-index: 5 !important;
+    background: var(--dsw-alias-bg-base, #fff) !important; /* messages must not bleed through */
   }
   html.${HTML_CLASS} .${HDR.titleRow},
   html.${HTML_CLASS} .${HDR.titleCluster} {
@@ -480,29 +506,138 @@ window.__ModuleLoader__.load({
   }
   html.${HTML_CLASS} .${HDR.tabs} {
     grid-area: tabs !important;
-    justify-self: start !important;
+    justify-self: stretch !important; /* fill the 1fr column; scroll inside */
     min-width: 0 !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important; /* labels scroll horizontally, never verticalize */
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  html.${HTML_CLASS} .${HDR.tabs}::-webkit-scrollbar { display: none !important; }
+  html.${HTML_CLASS} .${HDR.tabs} > * {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+  }
+  html.${HTML_CLASS} .${HDR.headerUtilities} {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    min-width: 0 !important;
+    margin-right: 34px !important; /* park clear of the absolute details toggle */
+  }
+  /* Composer stats line (turns/steps/LLM times) — hidden on phones. The real
+     class lives under the composer root (-NDN2W_root); the leading dash makes
+     it un-selectable directly, hence the substring match. */
+  html.${HTML_CLASS} .${INPUT.root} [class*="NDN2W_root"] {
+    display: none !important;
+  }
+  /* Session-log button icon-only on phones: the word "Session log" collides
+     with the adjacent details toggle below ~560px. */
+  html.${HTML_CLASS} [class*="sessionLogButton"] {
+    width: 38px !important;
+    min-width: 0 !important;
+    padding-inline: 7px !important;
+    gap: 0 !important;
+  }
+  html.${HTML_CLASS} [class*="sessionLogButton"] > span {
+    display: none !important; /* the label; the SVG icon survives */
   }
   html.${HTML_CLASS} .${HDR.headerActions} {
     grid-area: actions !important;
     justify-self: end !important;
     align-self: center !important;
     min-width: 0 !important;
-    max-width: 100% !important;
-    flex-wrap: wrap !important;
-    gap: 4px 8px !important;
+    max-width: min(48vw, 210px) !important; /* cap the auto column so crumbs live */
+    flex-wrap: nowrap !important;
+    flex-direction: row !important; /* icon chips sit side by side, one line */
+    align-items: center !important;
+    gap: 6px !important;
     overflow: visible !important; /* don't clip subagent/jobs buttons or their menus */
   }
+  html.${HTML_CLASS} .${HDR.headerActions} > * { min-width: 0 !important; }
   html.${HTML_CLASS} .${HDR.headerActions} .${PRESET_LABEL} {
     display: inline-flex !important;
     align-items: center !important;
-    gap: 4px !important;
+    gap: 0 !important;
     max-width: 100% !important;
     overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-    font-size: 12px !important;
+    font-size: 0 !important; /* icon-only chip; the menu carries the words */
     line-height: 18px !important;
+  }
+
+  /* Header redesign (phones): demote verbose chips to icons so everything
+     fits two lines — title row, then tabs + icon chips. Text lives in the
+     popovers the chips open, not on the chips themselves. */
+  html.${HTML_CLASS} .${PRESET_LABEL} {
+    font-size: 0 !important; /* keeps the leading icon, drops "Standard mode" */
+    gap: 0 !important;
+  }
+  html.${HTML_CLASS} [class*="QsffPG_trigger"] {
+    font-size: 0 !important; /* keeps the job dots + chevron, drops the prose */
+    gap: 0 !important;
+    padding-inline: 8px !important;
+  }
+  /* Jobs popover: centered, viewport-bounded — job rows need the full width
+     (the anchored popup clipped every path to "C:\Users\Read…"). */
+  html.${HTML_CLASS} [class*="QsffPG_menu"] {
+    position: fixed !important;
+    left: 50% !important;
+    right: auto !important;
+    top: 112px !important;
+    transform: translateX(-50%) !important;
+    width: min(92vw, 420px) !important;
+    max-height: 58vh !important;
+    overflow: auto !important;
+    z-index: 60 !important;
+  }
+
+  /* Overlay toggles: pill directly below the FAB (top-left), with a gap. */
+  html.${HTML_CLASS} .dshMobToggles {
+    position: fixed !important;
+    top: 70px !important;
+    left: 12px !important;
+    right: auto !important;
+    z-index: 70 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+  }
+  html.${HTML_CLASS} .dshMobToggle {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid var(--dsw-alias-border-l2, rgba(255,255,255,.28)) !important;
+    background: var(--dsw-alias-bg-layer-2, var(--dsw-alias-bg-base, #fff)) !important;
+    color: var(--dsw-alias-text-1, #f2f4f8) !important;
+    opacity: .85;
+    padding: 6px !important;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  html.${HTML_CLASS} .dshMobToggle svg { width: 100%; height: 100%; }
+  html.${HTML_CLASS} .dshMobToggle:active { opacity: 1; }
+  html.${HTML_CLASS}.dsh-mob-nabar .dshMobToggle { opacity: .9; }
+
+  /* While a question takeover is up, its mask already covers the toggles —
+     drop them from the layer stack too so they can never float above it
+     (iOS compositing differences). */
+  html.${HTML_CLASS}:has(.${QUESTION.frame}) .dshMobToggles {
+    display: none !important;
+  }
+
+  /* Long unbreakable strings must push text height, never panel width. */
+  html.${HTML_CLASS} .${QUESTION.body} {
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+
+  /* Hide-top-bar mode: pure reading view; FAB and toggles stay reachable. */
+  html.${HTML_CLASS}.dsh-mob-nabar .${HDR.header} {
+    display: none !important;
   }
 
   /* Subagent catalog: keep the trigger visible and pull its dropdown out of
@@ -681,6 +816,7 @@ window.__ModuleLoader__.load({
   }
 }
 
+
 .dshMobMenu {
   position: fixed;
   z-index: 60;
@@ -735,6 +871,12 @@ window.__ModuleLoader__.load({
   }
   .dshMobBackdrop[data-visible="true"] {
     display: block;
+  }
+  /* W-7/W-9: keyboard-inset consumption. Zero under resizes-content (the
+     content viewport itself shrinks, nothing to compensate); positive lift
+     on engines that ignore the descriptor (iOS lane). */
+  html.dsh-mobile-shell [data-composer-seat] {
+    padding-bottom: var(--dsh-kb-inset, 0px);
   }
 }
 `
@@ -930,7 +1072,7 @@ window.__ModuleLoader__.load({
       }
     }
 
-    function MobileChrome({ getLayout: getLayoutFn }) {
+    function MobileChrome({ getLayout: getLayoutFn, getConnection: getConnectionFn }) {
       const mobile = useMobile()
       const [frame, setFrame] = React.useState(null)
       const [sidebarEl, setSidebarEl] = React.useState(null)
@@ -939,6 +1081,8 @@ window.__ModuleLoader__.load({
       const [fabPos, setFabPos] = React.useState(() => readFabPos())
       const getLayoutRef = React.useRef(getLayoutFn)
       getLayoutRef.current = getLayoutFn
+      const getConnectionRef = React.useRef(getConnectionFn)
+      getConnectionRef.current = getConnectionFn
       const ignoreBackdropClickUntil = React.useRef(0)
       const fabBtnRef = React.useRef(null)
       const fabDragRef = React.useRef({
@@ -1068,6 +1212,110 @@ window.__ModuleLoader__.load({
         }
       }, [mobile])
 
+      // iOS Safari bug: position:fixed inside the (sticky/overflow) composer
+      // seat renders offset from the viewport — the question panel appears
+      // wider than the screen and its submit clips off-edge (no keyboard
+      // needed; Chrome-emulated geometry is correct, which is why desktop
+      // testing never shows it). Pin the frame without moving it: moving the
+      // node would sever React's delegated listeners (dead option buttons).
+      // Compute a corrective translate fresh each tick (idempotent — derives
+      // the natural rect by subtracting the currently applied transform).
+      // Never FORCE the card's height with the keyboard up: squishing it made
+      // its own fields spill under the backdrop, so tapping the free-text
+      // answer landed on backdrop and closed the panel (James, 2026-09-30).
+      // Instead float the card so its bottom rests just above the keyboard.
+      // W-7/W-9 S3: the 150 ms follow-poll is retired — the card now moves on
+      // visualViewport events (rAF-coalesced) with a settle-damp (|Δ|<2 px
+      // drops the write; no more 6.7 Hz shimmer fighting the 300 ms OSK
+      // animation). A 2500 ms PRESENCE watchdog (not a follow loop) covers the
+      // panel mounting without any viewport event.
+      React.useEffect(() => {
+        if (!mobile) return
+        let raf = 0
+        let last = null
+        let hadEl = false
+        const run = () => {
+          raf = 0
+          const el = document.querySelector('.' + QUESTION.frame)
+          hadEl = !!el
+          if (!el) { last = null; return }
+          const vv = window.visualViewport
+          const vw = (vv && vv.width) || window.innerWidth
+          const vh = (vv && vv.height) || window.innerHeight
+          const vTop = (vv && vv.offsetTop) || 0
+          const layoutH = window.innerHeight
+          const kb = layoutH - vh > 140
+          el.style.width = vw + 'px'
+          const r = el.getBoundingClientRect()
+          const cur = el.dataset.hnpin ? JSON.parse(el.dataset.hnpin) : { x: 0, y: 0 }
+          const nat = { x: r.x - cur.x, y: r.y - cur.y, b: r.bottom - cur.y, h: r.height }
+          if (kb && nat.h > vh - 16) el.style.height = (vh - 16) + 'px'
+          else if (el.style.height) el.style.height = ''
+          const r2 = el.style.height ? el.getBoundingClientRect() : r
+          const natB = r2.bottom - cur.y
+          const tx = (window.innerWidth - r2.width) / 2 - nat.x
+          const wantB = kb ? vTop + vh - 12 : Math.min(natB, layoutH - 16)
+          let ty = wantB - natB
+          if (nat.y + ty < vTop + 8) ty = vTop + 8 - nat.y
+          el.dataset.hnpin = JSON.stringify({ x: tx, y: ty })
+          if (last && Math.abs(tx - last.x) < 2 && Math.abs(ty - last.y) < 2) { last = { x: tx, y: ty }; return }
+          last = { x: tx, y: ty }
+          el.style.transform = 'translate(' + tx + 'px,' + ty + 'px)'
+        }
+        const schedule = () => { if (!raf) raf = requestAnimationFrame(run) }
+        run()
+        const vv = window.visualViewport
+        if (vv) {
+          vv.addEventListener('resize', schedule)
+          vv.addEventListener('scroll', schedule)
+        }
+        const iv = setInterval(() => {
+          const present = !!document.querySelector('.' + QUESTION.frame)
+          if (present !== hadEl) run()
+        }, 2500)
+        return () => {
+          if (raf) cancelAnimationFrame(raf)
+          clearInterval(iv)
+          if (vv) {
+            vv.removeEventListener('resize', schedule)
+            vv.removeEventListener('scroll', schedule)
+          }
+        }
+      }, [mobile])
+
+      // W-7/W-9 S2: the ONE keyboard signal — event-driven, rAF-coalesced.
+      // Publishes --dsh-kb-inset + html[data-kb-open] for CSS consumers; under
+      // the S1 descriptor inset resolves to ~0 (content resized already).
+      React.useEffect(() => {
+        if (!mobile) return
+        const vv = window.visualViewport
+        const root = document.documentElement
+        let raf = 0
+        const publish = () => {
+          raf = 0
+          if (!vv) return
+          const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+          root.style.setProperty('--dsh-kb-inset', Math.round(inset) + 'px')
+          if (inset > 140) root.setAttribute('data-kb-open', 'true')
+          else root.removeAttribute('data-kb-open')
+        }
+        const schedule = () => { if (!raf) raf = requestAnimationFrame(publish) }
+        publish()
+        if (vv) {
+          vv.addEventListener('resize', schedule)
+          vv.addEventListener('scroll', schedule)
+        }
+        return () => {
+          if (raf) cancelAnimationFrame(raf)
+          if (vv) {
+            vv.removeEventListener('resize', schedule)
+            vv.removeEventListener('scroll', schedule)
+          }
+          root.style.removeProperty('--dsh-kb-inset')
+          root.removeAttribute('data-kb-open')
+        }
+      }, [mobile])
+
       // Suppress programmatic input focus on mobile: switching sessions fires
       // an el.focus() in the conversation InputBar, which pops the soft keyboard.
       // We only let focus through when the user actually tapped the composer.
@@ -1189,7 +1437,7 @@ window.__ModuleLoader__.load({
               document.documentElement.setAttribute(ATTR_DETAILS, '')
               setDetailsOpen(true)
               const f = findFrame()
-              if (f && !f.hasAttribute('data-sidebar-collapsed')) layout.toggleSidebar?.()
+              if (f && !readSidebarCollapsed(f)) layout.toggleSidebar?.()
             } catch (err) {
               console.warn('[dsh-mobile-hanui] openDetails', err)
               document.documentElement.removeAttribute(ATTR_DETAILS)
@@ -1232,12 +1480,50 @@ window.__ModuleLoader__.load({
 
       React.useEffect(() => {
         if (!frame) return
-        const read = () => setCollapsed(frame.hasAttribute('data-sidebar-collapsed'))
-        read()
-        const obs = new MutationObserver(read)
-        obs.observe(frame, { attributes: true, attributeFilter: ['data-sidebar-collapsed'] })
-        return () => obs.disconnect()
+        // W-10 S2: mirror the (drift-proof) state onto a hanui-owned attribute
+        // so drawer CSS reads [data-dshmob-collapsed], never core attributes.
+        const mirror = () => {
+          const c = readSidebarCollapsed(frame)
+          frame.setAttribute('data-dshmob-collapsed', c ? 'true' : 'false')
+          setCollapsed(c)
+        }
+        mirror()
+        const obs = observeSidebarState(frame, mirror)
+        // The drawer animates in without any attribute mutation (boot open
+        // state); a cheap mirror pass keeps truth exact regardless of carrier.
+        const iv = setInterval(mirror, 1000)
+        return () => {
+          obs.disconnect()
+          clearInterval(iv)
+        }
       }, [frame])
+
+      // W-8 wake-and-verify: Android silently kills the socket during freeze/Doze
+      // and never fires `online`, so the controller can sit parked in its backoff
+      // ladder forever. On resume we reconnect what LOOKS dead; a BFCache restore
+      // (pageshow persisted) can look 'connected' while being a zombie, so that
+      // branch rebuilds the generation unconditionally. Connected + short app
+      // switch is left alone (no churn). If field tests still leak silent deaths,
+      // plan S2 (visible-only frame watchdog) is the pre-approved follow-up.
+      React.useEffect(() => {
+        if (!mobile) return
+        const wake = (force) => {
+          if (document.visibilityState !== 'visible') return
+          if (!force && !navigator.onLine) return
+          const c = getConnectionRef.current?.()
+          if (!c || typeof c.reconnect !== 'function') return
+          if (!force && c.state?.getSnapshot?.() === 'connected') return
+          c.reconnect()
+        }
+        const onVisibility = () => wake(false)
+        const onPageShow = (e) => { if (e.persisted) wake(true) }
+        document.addEventListener('visibilitychange', onVisibility)
+        window.addEventListener('pageshow', onPageShow)
+        return () => {
+          document.removeEventListener('visibilitychange', onVisibility)
+          window.removeEventListener('pageshow', onPageShow)
+        }
+      }, [mobile])
 
       // Swipe-left on visible backdrop → same onClose as backdrop click. No swipe-open.
       React.useEffect(() => {
@@ -1340,43 +1626,44 @@ window.__ModuleLoader__.load({
       React.useEffect(() => {
         if (!mobile || !sidebarEl || !frame) return
         const onClick = (e) => {
-          if (frame.hasAttribute('data-sidebar-collapsed')) return
+          if (readSidebarCollapsed(frame)) return
           const t = e.target
           if (!(t instanceof Element)) return
-          // Row action menus / folder chrome — don't close
-          if (t.closest(`.${SIDEBAR_ROW.rowActions}, .${SIDEBAR_ROW.iconButton}, input, textarea, select`)) {
+          // Row action menus / folder chrome / form fields — don't close
+          if (t.closest(`${SIDEBAR_ROW.rowActions}, ${SIDEBAR_ROW.iconButton}, input, textarea, select`)) {
             return
           }
           // Workspace section-header controls (search view, view options, add
-          // workspace) open sub-views / menus inside the drawer — keep it open.
-          if (t.closest(`.${WS_HDR.sectionHeader}, .${WS_HDR.search}, .${WS_HDR.searchButton}, .${WS_HDR.searchInput}, .${WS_HDR.clearButton}, .${WS_HDR.iconButton}`)) {
+          // workspace) + session overflow ("Show N more") open sub-views
+          // INSIDE the drawer — keep open. W-10 S1: suffix selectors (hash-
+          // proof) + aria labels as belt-and-braces for the functional targets.
+          if (
+            t.closest(
+              `${WS_HDR.sectionHeader}, ${WS_HDR.search}, ${WS_HDR.searchButton}, ${WS_HDR.searchInput}, ${WS_HDR.clearButton}, ${WS_HDR.iconButton}, ${WS_HDR.headerActions}, [class*="_sessionOverflowButton"], [aria-label="Search sessions"], [aria-label="View options"], [aria-label="Add workspace"]`,
+            )
+          ) {
             return
           }
-          // Session rows are div[role=treeitem].YDXeBa_sessionRow (not <button>)
-          const sessionHit = t.closest(`.${SIDEBAR_ROW.session}, .${SIDEBAR_ROW.search}`)
+          // Session rows are div[role=treeitem] in a *_sessionRow local class.
+          const sessionHit = t.closest(`${SIDEBAR_ROW.session}, ${SIDEBAR_ROW.search}`)
           if (sessionHit) {
             const closeIfOpen = () => {
-              if (!frame.hasAttribute('data-sidebar-collapsed')) toggleSidebar()
+              if (!readSidebarCollapsed(frame)) toggleSidebar()
             }
             window.setTimeout(closeIfOpen, 140)
             window.setTimeout(closeIfOpen, 280)
             return
           }
-          // Other nav (new chat, settings, …) — skip project/folder expand rows
-          if (t.closest(`.${SIDEBAR_ROW.project}`)) return
+          // Project/folder expand rows keep the drawer open.
+          if (t.closest(SIDEBAR_ROW.project)) return
           // The settings trigger opens a full-screen overlay that lives INSIDE
           // the drawer; closing the drawer here would kill the just-opened panel
           // (the "settings flashes then disappears" bug). Keep the drawer open.
           if (t.closest(`.${SETTINGS.overlay}, .${SETTINGS.trigger}`)) return
-          const actionable = t.closest(
-            'button, a, [role="button"], [role="option"], [role="menuitem"], li, [data-session-id], [data-conversation-id]',
-          )
-          if (!actionable) return
-          const closeIfOpen = () => {
-            if (!frame.hasAttribute('data-sidebar-collapsed')) toggleSidebar()
-          }
-          window.setTimeout(closeIfOpen, 140)
-          window.setTimeout(closeIfOpen, 280)
+          // W-10 S3 fail-open: the catch-all close is GONE. Unknown buttons/
+          // links keep the drawer open — a false close costs a feature (search,
+          // show-more), a false open costs one backdrop tap. Only the positive
+          // session activation above closes.
         }
         sidebarEl.addEventListener('click', onClick, true)
         return () => sidebarEl.removeEventListener('click', onClick, true)
@@ -1390,7 +1677,7 @@ window.__ModuleLoader__.load({
             closeDetails()
             return
           }
-          if (frame && !frame.hasAttribute('data-sidebar-collapsed')) toggleSidebar()
+          if (frame && !readSidebarCollapsed(frame)) toggleSidebar()
         }
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)
@@ -1480,10 +1767,41 @@ window.__ModuleLoader__.load({
         openSidebar()
       }
 
+      // Top-bar hide + fullscreen toggles (mobile-only overlay chrome)
+      const [barHidden, setBarHidden] = React.useState(() => {
+        const on = localStorage.getItem('dsh-mob-nabar') === '1'
+        document.documentElement.classList.toggle('dsh-mob-nabar', on)
+        return on
+      })
+      const [fsOn, setFsOn] = React.useState(() => !!document.fullscreenElement)
+      React.useEffect(() => {
+        const sync = () => setFsOn(!!document.fullscreenElement)
+        document.addEventListener('fullscreenchange', sync)
+        return () => document.removeEventListener('fullscreenchange', sync)
+      }, [])
+      const toggleBar = () => {
+        const next = !barHidden
+        setBarHidden(next)
+        document.documentElement.classList.toggle('dsh-mob-nabar', next)
+        localStorage.setItem('dsh-mob-nabar', next ? '1' : '0')
+      }
+      const toggleFs = () => {
+        try {
+          if (document.fullscreenElement) document.exitFullscreen()
+          else document.documentElement.requestFullscreen({ navigationUI: 'hide' })
+        } catch { /* iOS Safari: use Add-to-Home-Screen standalone instead */ }
+      }
+
       if (!mobile) return null
 
       const sidebarOpen = !!frame && !collapsed
-      const showMenu = !!frame && collapsed && !detailsOpen
+      // The whale is the ONLY opener for the session drawer on a phone. The
+      // previous gate (`&& collapsed`) meant a desynced data-sidebar-collapsed
+      // flag — or simply opening a session while the sidebar was left expanded
+      // — deleted the button entirely (James: "can't start a new session, the
+      // whale is gone inside a session"). Render it whenever a frame exists;
+      // openSidebar() is a toggle, and the icon flips via data-open below.
+      const showMenu = !!frame && !detailsOpen
       const showBackdrop = sidebarOpen || detailsOpen
 
       const fabStyle = fabPos
@@ -1502,6 +1820,7 @@ window.__ModuleLoader__.load({
             ref: fabBtnRef,
             className: 'dshMobMenu',
             'data-visible': showMenu ? 'true' : 'false',
+            'data-open': sidebarOpen ? 'true' : 'false',
             'aria-label': '打开菜单',
             style: fabStyle,
             onPointerDown: onFabPointerDown,
@@ -1518,14 +1837,191 @@ window.__ModuleLoader__.load({
             'aria-label': '关闭面板',
             onClick: onBackdropClick,
           }),
+          jsx('div', {
+            className: 'dshMobToggles',
+            children: [
+              jsx('button', {
+                type: 'button',
+                className: 'dshMobToggle',
+                'aria-label': barHidden ? '显示顶栏' : '隐藏顶栏',
+                onClick: toggleBar,
+                children: jsx('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', children: jsxs('g', { children: [
+                  jsx('rect', { x: 3, y: 3, width: 18, height: 5, rx: 1.5, fill: 'currentColor', stroke: 'none' }, 'bar'),
+                  jsxs('g', { transform: barHidden ? 'rotate(180 12 14)' : undefined, children: [
+                    jsx('path', { d: 'M12 10v9' }, 'shaft'),
+                    jsx('path', { d: 'M8 15l4 4 4-4' }, 'head'),
+                  ] }, 'arrow'),
+                ] }) }),
+              }, 'bar'),
+              jsx('button', {
+                type: 'button',
+                className: 'dshMobToggle',
+                'aria-label': fsOn ? '退出全屏' : '全屏',
+                onClick: toggleFs,
+                children: jsx('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', children: fsOn ? jsxs('g', { children: [
+                  jsx('path', { d: 'M9 4v3a2 2 0 0 1-2 2H4M15 4v3a2 2 0 0 0 2 2h3M9 20v-3a2 2 0 0 0-2-2H4M15 20v-3a2 2 0 0 1 2-2h3' }, 'c'),
+                ] }) : jsxs('g', { children: [
+                  jsx('path', { d: 'M4 9V6a2 2 0 0 1 2-2h3M20 9V6a2 2 0 0 0-2-2h-3M4 15v3a2 2 0 0 0 2 2h3M20 15v3a2 2 0 0 1-2 2h-3' }, 'c'),
+                ] }) }),
+              }, 'fs'),
+            ],
+          }),
         ],
       })
     }
 
-    const inject = ['slots', 'layout']
+    const inject = ['slots', 'layout', 'commandUi', 'conversation', 'connection']
+
+    // Module-scope hooks: executed the moment this bundle is evaluated, on
+    // every route — including ones where apply() is never called.
+    if (typeof window !== 'undefined') {
+      try {
+        const mq0 = window.matchMedia(MOBILE_MQ)
+        // W-7/W-9 S1: ask Chrome to resize content with the OSK instead of
+        // overlaying it. The descriptor is evaluated at document load — it
+        // must be patched here, at bundle boot, never later.
+        const vm = document.querySelector('meta[name="viewport"]')
+        if (vm && mq0.matches) {
+          const c = vm.getAttribute('content') || ''
+          if (!/interactive-widget/i.test(c)) vm.setAttribute('content', c.replace(/\s*$/, '') + ', interactive-widget=resizes-content')
+        }
+        const sync0 = () => {
+          if (mq0.matches && !shellDisabled()) document.documentElement.classList.add(HTML_CLASS)
+        }
+        sync0()
+        mq0.addEventListener('change', sync0)
+        // React lifecycle races can drop the class on routes without a frame;
+        // re-asserting costs one classList call every 400ms at phone widths.
+        setInterval(sync0, 400)
+      } catch (_) {}
+    }
 
     function apply(ctx) {
       ensureStyle()
+      // Chrome mounts on every route via shell.overlay (verified live); the
+      // DOM-injected hero drawer was a workaround for a React crash that is
+      // gone. One opener (the FAB), one backdrop, one state source: the
+      // frame's data-sidebar-collapsed attribute.
+
+      // W-1 mobile attach: /attach command (client contributions merge into
+      // the command catalog = visible under the + button AND when typing /).
+      // Intake uses public draft verbs only: conversation.createDraftImages
+      // (capability-checked — it lives on the concrete controller, not the
+      // declared face) + the session-scoped inputActions.addImages captured
+      // from an invisible conversation.input.left plumbing entry (slot is
+      // empty by catalogue; this entry renders nothing, adds no button).
+      try {
+        const mqA = window.matchMedia(MOBILE_MQ)
+        let inputActions = null
+        const notice = (text) => {
+          try {
+            const n = document.createElement('div')
+            n.textContent = text
+            n.style.cssText = 'position:fixed;left:12px;right:12px;top:calc(8px + env(safe-area-inset-top,0px));padding:10px 12px;border-radius:10px;background:rgba(30,30,34,.95);color:#eee;font-size:13px;z-index:400;pointer-events:none'
+            document.body.appendChild(n)
+            setTimeout(() => n.remove(), 3200)
+          } catch (_) {}
+        }
+        const toJpeg = async (file) => {
+          try {
+            const bmp = await createImageBitmap(file)
+            const max = Math.max(bmp.width, bmp.height)
+            const s = max > 4096 ? 4096 / max : 1
+            const cv = document.createElement('canvas')
+            cv.width = Math.max(1, Math.round(bmp.width * s))
+            cv.height = Math.max(1, Math.round(bmp.height * s))
+            cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height)
+            const blob = await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.9))
+            if (bmp.close) bmp.close()
+            if (!blob) return file
+            const base = String(file.name || 'photo').replace(/\.(heic|heif)$/i, '')
+            return new File([blob], base + '.jpg', { type: 'image/jpeg' })
+          } catch (_) { return file }
+        }
+        const intake = async (files) => {
+          try {
+            console.info('[hanui-attach] intake', files.length, 'inputActions:', !!inputActions, 'createDraftImages:', typeof (ctx.conversation || {}).createDraftImages)
+            const conv = ctx.conversation
+            if (!conv || typeof conv.createDraftImages !== 'function' || !inputActions) {
+              notice('Attach unavailable right now — paste or drop instead.')
+              return
+            }
+            const list = []
+            for (const f of files) {
+              list.push(/^image\/hei[cf]$/i.test(f.type) ? await toJpeg(f) : f)
+            }
+            const atts = conv.createDraftImages(list)
+            if (!inputActions.addImages(atts.map((a) => a.id))) {
+              if (conv.releaseDraftImages) conv.releaseDraftImages(atts)
+              notice('Composer is busy — try again in a moment.')
+            }
+          } catch (e) {
+            notice('Attach failed: ' + String((e && e.message) || e))
+          }
+        }
+        const openPicker = (mode) => {
+          const inp = document.createElement('input')
+          inp.type = 'file'
+          inp.accept = 'image/*'
+          inp.multiple = true
+          if (mode === 'camera') inp.capture = 'environment'
+          inp.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0'
+          inp.addEventListener('change', () => { console.info('[hanui-attach] change fired', inp.files.length); intake([...inp.files]); inp.remove() }, { once: true })
+          inp.addEventListener('cancel', () => inp.remove(), { once: true })
+          document.body.appendChild(inp)
+          setTimeout(() => { if (inp.isConnected) inp.remove() }, 120000)
+          inp.click()
+        }
+        ctx.effect(
+          () => ctx.slots.inject('conversation.input.left', () =>
+            ctx.slots.register(
+              {
+                name: 'conversation.input.left',
+                id: 'dsh-mobile-hanui-attach-plumbing',
+                order: 900,
+                label: 'Attach plumbing',
+              },
+              (props) => {
+                // Per-session slot: capture this session's actions on mount,
+                // release on unmount ONLY if still ours (order-proof across
+                // view switches). onSelect then always targets the visible
+                // session's composer, never a stale one.
+                const ia = props && props.inputActions
+                React.useEffect(() => {
+                  if (!ia) return
+                  inputActions = ia
+                  console.info('[hanui-attach] plumbing captured')
+                  return () => { if (inputActions === ia) { inputActions = null; console.info('[hanui-attach] plumbing released') } }
+                }, [ia])
+                return null
+              },
+            )),
+          'dsh-mobile-hanui: attach plumbing',
+        )
+        ctx.effect(
+          () => {
+            if (!ctx.commandUi) return
+            try {
+              const off = ctx.commandUi.register({
+                name: 'attach',
+                description: 'Attach an image to the message',
+                available: () => mqA.matches,
+                ui: {
+                  kind: 'popupSelect',
+                  options: async () => [
+                    { id: 'library', label: 'Choose photo…', detail: 'From your library' },
+                    { id: 'camera', label: 'Take photo…', detail: 'Open the camera' },
+                  ],
+                  onSelect: (opt) => { openPicker(opt && opt.id === 'camera' ? 'camera' : 'library') },
+                },
+              })
+              return typeof off === 'function' ? off : undefined
+            } catch (_) {}
+          },
+          'dsh-mobile-hanui: /attach',
+        )
+      } catch (_) {}
+
       ctx.effect(
         () =>
           ctx.slots.inject('shell.overlay', () =>
@@ -1539,6 +2035,7 @@ window.__ModuleLoader__.load({
               () =>
                 jsx(MobileChrome, {
                   getLayout: () => ctx.layout,
+                  getConnection: () => ctx.connection,
                 }),
             ),
           ),
