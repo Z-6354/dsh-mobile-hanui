@@ -1036,7 +1036,7 @@ window.__ModuleLoader__.load({
       }
     }
 
-    function MobileChrome({ getLayout: getLayoutFn }) {
+    function MobileChrome({ getLayout: getLayoutFn, getConnection: getConnectionFn }) {
       const mobile = useMobile()
       const [frame, setFrame] = React.useState(null)
       const [sidebarEl, setSidebarEl] = React.useState(null)
@@ -1045,6 +1045,8 @@ window.__ModuleLoader__.load({
       const [fabPos, setFabPos] = React.useState(() => readFabPos())
       const getLayoutRef = React.useRef(getLayoutFn)
       getLayoutRef.current = getLayoutFn
+      const getConnectionRef = React.useRef(getConnectionFn)
+      getConnectionRef.current = getConnectionFn
       const ignoreBackdropClickUntil = React.useRef(0)
       const fabBtnRef = React.useRef(null)
       const fabDragRef = React.useRef({
@@ -1387,6 +1389,33 @@ window.__ModuleLoader__.load({
         obs.observe(frame, { attributes: true, attributeFilter: ['data-sidebar-collapsed'] })
         return () => obs.disconnect()
       }, [frame])
+
+      // W-8 wake-and-verify: Android silently kills the socket during freeze/Doze
+      // and never fires `online`, so the controller can sit parked in its backoff
+      // ladder forever. On resume we reconnect what LOOKS dead; a BFCache restore
+      // (pageshow persisted) can look 'connected' while being a zombie, so that
+      // branch rebuilds the generation unconditionally. Connected + short app
+      // switch is left alone (no churn). If field tests still leak silent deaths,
+      // plan S2 (visible-only frame watchdog) is the pre-approved follow-up.
+      React.useEffect(() => {
+        if (!mobile) return
+        const wake = (force) => {
+          if (document.visibilityState !== 'visible') return
+          if (!force && !navigator.onLine) return
+          const c = getConnectionRef.current?.()
+          if (!c || typeof c.reconnect !== 'function') return
+          if (!force && c.state?.getSnapshot?.() === 'connected') return
+          c.reconnect()
+        }
+        const onVisibility = () => wake(false)
+        const onPageShow = (e) => { if (e.persisted) wake(true) }
+        document.addEventListener('visibilitychange', onVisibility)
+        window.addEventListener('pageshow', onPageShow)
+        return () => {
+          document.removeEventListener('visibilitychange', onVisibility)
+          window.removeEventListener('pageshow', onPageShow)
+        }
+      }, [mobile])
 
       // Swipe-left on visible backdrop → same onClose as backdrop click. No swipe-open.
       React.useEffect(() => {
@@ -1732,7 +1761,7 @@ window.__ModuleLoader__.load({
       })
     }
 
-    const inject = ['slots', 'layout', 'commandUi', 'conversation']
+    const inject = ['slots', 'layout', 'commandUi', 'conversation', 'connection']
 
     // Module-scope hooks: executed the moment this bundle is evaluated, on
     // every route — including ones where apply() is never called.
@@ -1889,6 +1918,7 @@ window.__ModuleLoader__.load({
               () =>
                 jsx(MobileChrome, {
                   getLayout: () => ctx.layout,
+                  getConnection: () => ctx.connection,
                 }),
             ),
           ),
