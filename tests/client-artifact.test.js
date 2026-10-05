@@ -1341,7 +1341,7 @@ test('native launch cover waits while official boot surface is present', () => {
  const app=loadArtifact({native:true,manualTimers:true})
  const boot=app.doc.body.appendChild(new Element());boot.setAttribute('data-dsh-boot','')
  app.flush();app.runTimers();assert.equal(app.readinessRequests.length,0)
- boot.remove();app.runTimers();assert.equal(app.readinessRequests.length,1)
+ boot.remove();app.mutate();app.runTimers();assert.equal(app.readinessRequests.length,1)
  app.dispose();app.runTimers();assert.equal(app.readinessRequests.length,1)
 })
 

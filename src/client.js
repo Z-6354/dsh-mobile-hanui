@@ -1807,17 +1807,22 @@ window.__ModuleLoader__.load({
     function watchPageReady() {
       let sent = false
       let timer
-      const ready = () => {
+      let observer
+      const blocked = () => document.querySelector('[data-dsh-boot], [data-lha-loading]')
+      const send = () => {
         if (sent) return
-        if (document.querySelector('[data-dsh-boot], [data-lha-loading]')) {
-          timer = window.setTimeout(ready, 50)
-          return
-        }
         sent = true
+        if (timer) window.clearTimeout(timer)
+        observer?.disconnect()
         try { window.HanApp?.postMessage(JSON.stringify({ version: 1, id: 'hanui-ready', type: 'pageReady', payload: {} })) } catch (_) {}
       }
-      timer = window.setTimeout(ready, 0)
-      return () => { sent = true; window.clearTimeout(timer) }
+      const check = () => { if (!blocked()) send() }
+      timer = window.setTimeout(check, 0)
+      if (typeof MutationObserver === 'function' && document.documentElement) {
+        observer = new MutationObserver(check)
+        observer.observe(document.documentElement, { subtree: true, childList: true, attributes: true })
+      }
+      return () => { sent = true; if (timer) window.clearTimeout(timer); observer?.disconnect() }
     }
 
     function MobileChrome({ getLayout: getLayoutFn, layoutState }) {
