@@ -1,0 +1,32 @@
+/* Standalone login presentation; no authentication logic. */
+body.han-login{color-scheme:light;background:#fff;color:#17181c}
+body.han-login [data-lha-overlay]{position:relative;min-height:100vh;min-height:100dvh;box-sizing:border-box;padding:max(28px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(24px,env(safe-area-inset-left))}
+body.han-login [data-lha-mask]{display:none}
+body.han-login [data-lha-dialog],body.han-login [data-lha-dialog][data-lha-setup]{width:min(420px,100%);margin:auto;border:0;border-radius:0;box-shadow:none;background:#fff;padding:0;overflow:visible;animation:none}
+body.han-login [data-lha-content]{padding:0}
+body.han-login [data-lha-wordmark]{margin:clamp(32px,10vh,100px) 0 clamp(48px,12vh,110px);color:#4169ff;font-size:clamp(38px,10vw,52px);line-height:1.1;letter-spacing:-.045em;text-align:center;font-weight:700}
+body.han-login [data-lha-title]{font-size:20px;color:#17181c}
+body.han-login [data-lha-desc]{color:#858891}
+body.han-login [data-lha-body]{margin-top:24px;gap:16px}
+body.han-login [data-lha-field]{gap:8px}
+body.han-login [data-lha-field] span{color:#777b84;font-size:13px}
+body.han-login [data-lha-field] input{height:54px;min-height:54px;padding:0 18px;border:1px solid #e5e7ed;border-radius:18px;background:#fff;color:#17181c;font-size:16px}
+body.han-login [data-lha-field] input:focus{outline:2px solid #4169ff;outline-offset:2px;border-color:transparent}
+body.han-login [data-lha-server]{display:grid;grid-template-columns:minmax(0,1fr) 94px;gap:12px;margin-bottom:12px}
+body.han-login [data-lha-btn]{min-height:54px;border-radius:28px;font-size:17px}
+body.han-login [data-lha-btn].primary,body.han-login [data-lha-btn].passkey{color:#fff;background:#4169ff;font-weight:600}
+body.han-login [data-lha-btn].primary:hover:not(:disabled){background:#3458df}
+body.han-login [data-lha-btn]:disabled{opacity:1;color:#ffffffad}
+body.han-login [data-lha-hint]{color:#858891}
+body.han-login [data-lha-warn]{color:#6b707b;background:#f7f8fa;border-color:#eef0f4}
+body.han-login [data-lha-error]{color:#bf3939;background:#fff3f3;border-color:#f2d3d3}
+body.han-login [data-lha-tabs]{background:#fff;border-color:#e5e7ed}
+body.han-login [data-lha-tabs] button{color:#777b84;min-height:44px}
+body.han-login [data-lha-tabs] button.active{background:#f2f5ff;color:#4169ff;box-shadow:none}
+@media(max-height:600px){body.han-login [data-lha-wordmark]{margin:12px 0 28px;font-size:36px}}
+/* Reference: white canvas, centered blue wordmark, restrained form controls. */
+body.han-login [data-lha-dialog]:not([data-lha-setup]) [data-lha-title],body.han-login [data-lha-dialog]:not([data-lha-setup]) > [data-lha-content] > [data-lha-desc]{display:none}
+body.han-login [data-lha-warn]{background:transparent;border:0;padding:0;font-size:12px;line-height:20px}
+body.han-login #password{margin-top:2px}
+
+body.han-login[data-checking] [data-lha-server],body.han-login[data-checking] #form,body.han-login[data-checking] #tabs,body.han-login[data-checking] #passkeyPanel{visibility:hidden}
